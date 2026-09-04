@@ -1,0 +1,13 @@
+{
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "install": "bash .cursor/cloud/install.sh",
+  "start": "bash .cursor/cloud/start.sh",
+  "terminals": [
+    {
+      "name": "metro",
+      "command": "bash .cursor/cloud/metro.sh"
+    }
+  ]
+}
