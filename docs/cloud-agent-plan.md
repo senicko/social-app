@@ -99,16 +99,19 @@ Cursor offers three types. **Runtime Secret**: loaded as an environment variable
 
 The agent has no local copy of the native app, so each run starts with `.cursor/cloud/get-dev-client.sh`: it runs `eas build -p ios --profile dev-sim --no-wait --json`, polls `eas build:view` once a minute until `FINISHED`, downloads `artifacts.buildUrl` and extracts `build/Debug-iphonesimulator/Bluesky.app`. Budget 15 to 25 minutes and one build of the account's EAS quota per run. Two shortcuts exist for when a fresh native build is pointless (the change is JS-only and nothing native moved since the last build): `--reuse-latest` downloads the newest finished `dev-sim` build from EAS, and `BSKY_DEV_CLIENT_URL` downloads a tarball from anywhere. The prompt decides which mode the agent may use.
 
-### 1.8 Make the argent MCP server available to cloud agents
+### 1.8 Register the argent MCP server for cloud agents (required)
 
-Cursor's docs give two places for cloud-agent MCP servers: "Add and enable personal MCP servers through the MCP dropdown in cursor.com/agents. Team admins configure shared servers under Dashboard -> Integrations & MCP." The second one exists only for team admins on a team plan; on a personal account there is just the dropdown. Both HTTP and stdio transports are supported, and a stdio server runs inside the agent's VM. Separately, users on the Cursor forum report that a committed `.cursor/mcp.json` in the repo is picked up by cloud agents (it was the workaround when IDE-configured servers were not), so this repo does both:
+Cloud agents do not start MCP servers from the repo. Verified on the first real run: with `.cursor/mcp.json` committed, argent 0.24.0 on `PATH` and the package under `node_modules`, the agent still saw only Cursor's built-in tools (`cursor-cloud`, `cursor-subscriptions`). That matches the docs, which route cloud-agent MCP through the dashboard only: "Add and enable personal MCP servers through the MCP dropdown in cursor.com/agents. Team admins configure shared servers under Dashboard -> Integrations & MCP." (The second exists only on team plans.) `.cursor/environment.json` cannot define a server either: its schema (cursor.com/schemas/environment.schema.json) only has the policy fields `disableAllMcpServers` and `mcpServerAllowlist`, which restrict the user and team servers an environment may use; leave both unset so the personal argent server is allowed. The repo's `.cursor/mcp.json` stays for the desktop IDE.
 
-1. **Committed `.cursor/mcp.json`** (already in the repo) starts `node node_modules/@swmansion/argent/dist/cli.js mcp` from the workspace root. `install.sh` runs `pnpm install`, so the devDependency (0.24.0, with ios-remote support) is there.
-2. **Personal MCP dropdown at cursor.com/agents**, as a fallback if the file is ignored: add a **stdio** server named `argent` with command `argent` and args `mcp`. The image installs argent globally, so that command resolves from `PATH` regardless of working directory.
+Register argent once, as a **stdio** server, from the MCP dropdown at cursor.com/agents:
 
-Either way the tool-server spawned by the MCP process runs as the same VM user as `start.sh`, so it shares the `sim-remote` session and daemon that `start.sh` opened. Verified in the image: `argent tools` lists the toolkit on Linux, `argent run list-devices` returns an empty list before `sim-remote login` (no crash), and `argent mcp` answers an MCP `initialize` over stdio.
+| Field   | Value    |
+| ------- | -------- |
+| Name    | `argent` |
+| Command | `argent` |
+| Args    | `mcp`    |
 
-The first cloud run is the real test of the remaining assumptions: that Cursor actually starts the server from `.cursor/mcp.json` (else use the dropdown), and that the MCP process inherits the same user and `HOME` as `start.sh`. Step 1's `list-devices` check catches both.
+The image installs `@swmansion/argent` globally, so the command resolves from `PATH` whatever working directory Cursor gives the MCP process. Then start a **new** agent: servers are attached when an agent starts, and Cursor says it "cannot verify that a stdio server will run successfully until a cloud agent is launched", so the first run after enabling is the real check. The tool-server the MCP process spawns runs as the same VM user as `start.sh`, so it shares the `sim-remote` session and daemon that `start.sh` opened. Verified in the image: `argent tools` lists the toolkit on Linux, `argent run list-devices` returns an empty list before `sim-remote login` (no crash), and `argent mcp` answers an MCP `initialize` over stdio.
 
 ---
 
@@ -138,7 +141,7 @@ The first cloud run is the real test of the remaining assumptions: that Cursor a
 | `.cursor/cloud/stop.sh`              | agent, step 13         | Stops any recording, both reverse tunnels, `simctl shutdown`, `sim-remote logout`, `mock-backend.sh stop`.                                                      |
 | `.cursor/cloud/pr-body.md`           | agent, step 12         | PR description template; thumbnails in a table, videos attached with `gh --attach`.                                                                             |
 
-Why `metro.sh` calls the expo CLI entry directly: `npx expo` refuses to run when the Node major does not match `devEngines`, and pnpm's script wrapper has been seen to hang after its pre-run install. The argent MCP server comes from the committed `.cursor/mcp.json`, or from the personal MCP dropdown at cursor.com/agents as a fallback (section 1.8); it spawns the tool-server on the VM the first time a tool is called, after `start.sh` has logged in, so `list-devices` sees the runner. The `ensure-sim-remote.sh` step has no guarantee of its own: it runs because `environment.json` calls `install.sh` at build time (warning only) and `start.sh` at every run (hard failure).
+Why `metro.sh` calls the expo CLI entry directly: `npx expo` refuses to run when the Node major does not match `devEngines`, and pnpm's script wrapper has been seen to hang after its pre-run install. The argent MCP server is the stdio server registered in the MCP dropdown at cursor.com/agents (section 1.8; the repo's `.cursor/mcp.json` is not read by cloud agents); it spawns the tool-server on the VM the first time a tool is called, after `start.sh` has logged in, so `list-devices` sees the runner. The `ensure-sim-remote.sh` step has no guarantee of its own: it runs because `environment.json` calls `install.sh` at build time (warning only) and `start.sh` at every run (hard failure).
 
 ---
 
@@ -163,7 +166,7 @@ sim-remote reverse status                 # SIM_UDID with 8081 and 3000
 curl -s http://localhost:8081/status      # packager-status:running
 ```
 
-Then through argent MCP: `list-devices` must include `$SIM_UDID` with `platform: "ios-remote"`. If the argent tools are missing entirely, Cursor did not start the server from `.cursor/mcp.json`; add it in the MCP dropdown at cursor.com/agents (section 1.8). If the list is empty, the tool-server does not see the `sim-remote` session: run `sim-remote list-machines` from the terminal; if that shows a machine, the MCP process runs under a different user or `HOME` than `start.sh` did; if it does not, re-run `bash .cursor/cloud/start.sh`.
+Then through argent MCP: `list-devices` must include `$SIM_UDID` with `platform: "ios-remote"`. If the argent tools are missing entirely, the server is not enabled in the MCP dropdown at cursor.com/agents for this account, or the agent was started before it was enabled (section 1.8). If the list is empty, the tool-server does not see the `sim-remote` session: run `sim-remote list-machines` from the terminal; if that shows a machine, the MCP process runs under a different user or `HOME` than `start.sh` did; if it does not, re-run `bash .cursor/cloud/start.sh`.
 
 ### Step 2. Smoke-test screenshots and recording before building
 
@@ -320,8 +323,8 @@ simulator (UDID in .cursor/cloud/session.env) and opened `sim-remote reverse sta
 `... 3000`, so the simulator reaches Metro (terminal "metro", port 8081) and the local mock Bluesky
 network (PDS on port 3000) at its own localhost. The mock network is seeded with alice.test, bob.test
 and carla.test (password hunter2, a public test fixture); nothing you do there is visible outside the VM.
-Argent's MCP tools (server "argent" from .cursor/mcp.json) see that simulator as platform "ios-remote";
-use them for describe/tap/type/screenshot.
+Argent's MCP tools (server "argent", enabled in the MCP dropdown at cursor.com/agents) see that simulator as
+platform "ios-remote"; use them for describe/tap/type/screenshot.
 Paths you pass to argent or `sim-remote simctl install` are local paths; they are uploaded for you.
 git pushes use Cursor's GitHub integration; `gh` is authenticated through GH_TOKEN.
 
@@ -356,7 +359,7 @@ Follow docs/cloud-agent-plan.md section 3 in order. Rules:
 | Mock network memory and CPU on Cursor's "limited" VM profile (Postgres + Redis + PDS + appview + Metro). | Slow or OOM-killed run                        | Verified in the amd64 image on a laptop; if the VM is too small, raise its profile or move the mock to `MOCK_SEED=users` only. |
 | Seeded appview DID drifts from `.env` (reseed without a Metro restart).                                 | Every request after login fails               | `mock-backend.sh seed` prints the DID; restart the `metro` terminal with `--clear` afterwards; step 1 greps `.env`.            |
 | EAS build per run: 15 to 25 minutes and one build of quota each time; queue waits on the free tier.     | Slow runs, quota exhaustion                   | `--reuse-latest` when the prompt allows; `BSKY_DEV_CLIENT_URL` as an escape hatch.                                            |
-| Cursor ignores the repo's `.cursor/mcp.json` for cloud agents, or the MCP process runs under a different user/HOME than `start.sh`. | No argent tools, or `list-devices` empty | Add argent (stdio, `argent mcp`) in the MCP dropdown at cursor.com/agents; step 1 compares `list-devices` with `sim-remote list-machines` from the terminal. |
+| argent not enabled in the MCP dropdown at cursor.com/agents (the repo's `.cursor/mcp.json` is ignored by cloud agents, confirmed), or the MCP process runs under a different user/HOME than `start.sh`. | No argent tools, or `list-devices` empty | Section 1.8; start a new agent after enabling; step 1 compares `list-devices` with `sim-remote list-machines` from the terminal. |
 | Fleet fully leased; `login` waits for a free runner.                                                    | Run stalls at start                           | `start.sh` waits 300 s; report if it still fails.                                                                             |
 | Session expires or the sim-remote daemon dies mid-run; tunnels die with it.                             | argent tools, Metro and PDS connections stop  | Re-run `start.sh`; `list-machines` + `attach` if the lease survived.                                                          |
 | `recordVideo` stop/download semantics over sim-remote (SIGINT, `--force`).                              | No video files                                | Step 2 smoke test; `record.sh` polls for the download and prints the duration.                                                |
