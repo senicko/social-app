@@ -23,10 +23,15 @@ overrides:
   '@types/psl': '1.1.1'
   'react-native-screens': '4.26.2'
 allowBuilds:
+  '@fails-components/webtransport-transport-http3-quiche': false
   '@sentry/cli': true
   'core-js': false
   'core-js-pure': false
   'esbuild': false
+  node-pty: false
+  tree-sitter: false
+  tree-sitter-javascript: false
+  tree-sitter-typescript: false
   'unrs-resolver': true
 patchedDependencies:
   '@formatjs/bigdecimal@0.2.5': patches/@formatjs__bigdecimal@0.2.5.patch

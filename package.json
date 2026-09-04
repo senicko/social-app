@@ -276,6 +276,7 @@
     "@react-native/jest-preset": "0.86.0",
     "@react-native/typescript-config": "^0.81.5",
     "@sentry/webpack-plugin": "^3.2.2",
+    "@swmansion/argent": "^0.24.0",
     "@testing-library/react-native": "^13.2.0",
     "@types/jest": "29.5.14",
     "@types/lodash.chunk": "^4.2.7",
