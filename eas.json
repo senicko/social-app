@@ -85,6 +85,16 @@
       "env": {
         "EXPO_PUBLIC_ENV": "testflight"
       }
+    },
+    "dev-sim": {
+      "extends": "development",
+      "ios": {
+        "simulator": true,
+        "resourceClass": "medium"
+      },
+      "env": {
+        "EXPO_PUBLIC_ENV": "development"
+      }
     }
   },
   "submit": {

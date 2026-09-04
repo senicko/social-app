@@ -47,9 +47,9 @@ module.exports = function (_config) {
     expo: {
       version: VERSION,
       name: 'Bluesky',
-      slug: 'bluesky',
+      slug: 'social-app-demo',
       scheme: 'bluesky',
-      owner: 'blueskysocial',
+      owner: 'sebastian-flajszer',
       runtimeVersion: {
         policy: 'appVersion',
       },
@@ -279,7 +279,9 @@ module.exports = function (_config) {
             ios: {
               deploymentTarget: '16.4',
               buildReactNativeFromSource: true,
-              ccacheEnabled: IS_DEV,
+              // ccache wrappers resolve relative to ios/ and break the app-extension targets on
+              // EAS cloud builds, so keep ccache to local `expo run:ios` builds only.
+              ccacheEnabled: IS_DEV && !process.env.EAS_BUILD,
               cxxLanguageStandard: 'c++23',
               extraPods: [
                 {
@@ -474,7 +476,7 @@ module.exports = function (_config) {
               },
             },
           },
-          projectId: '55bd077a-d905-4184-9c7f-94789ba0f302',
+          projectId: 'e3af561c-8abe-4275-995a-24b6caddbe55',
         },
       },
     },
