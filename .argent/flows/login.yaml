@@ -1,11 +1,18 @@
 # Bluesky social-app login against the local mock PDS.
-# Replay from a fresh install (reinstall xyz.blueskyweb.app first).
+#
+# Recorded live on ios-remote. Replay from a fresh install:
+#   argent flow run login --device <udid> --platform ios
+#
 # Requires Metro on :8081, mock PDS on :3000, and ARGENT_SECRET_MOCK_PASSWORD
 # (or MOCK_PASSWORD in .argent/secrets.env).
 #
-# ios-remote has no runner UI tree: selector await/idle/type/tap cannot resolve.
-# This flow keeps the recorded coordinate taps and keyboard steps. Fixed waits
-# cover the Expo first-bundle and post-submit transitions.
+# ios-remote has no runner UI tree. Selector await/idle/type/tap cannot resolve,
+# live await-ui-element is unsupported, and paste has no clipboard transport.
+# This file keeps the live-recorded coordinate taps and keyboard steps.
+# Coordinate taps pass without proving they landed; verify the Following feed
+# after replay. First-install prompts (Open in Bluesky, Expo intro, keyboard
+# tutorial, notifications, Save Password, Age Assurance, email verify) assume
+# a new simulator plus a reinstall.
 steps:
   - echo: Restart Bluesky. Expect the Expo development client
   - launch: xyz.blueskyweb.app
@@ -36,12 +43,12 @@ steps:
 
   - echo: On logged-out splash. Tap Sign in
   - tap: { x: 0.501, y: 0.927 }
-  - echo: Wait for the sign-in form. A first-boot keyboard tutorial may cover it
+  - echo: Wait for the sign-in form
   - wait: 2000
 
-  - echo: Dismiss the keyboard swipe tutorial if it is showing. Harmless bottom tap otherwise
+  - echo: Keyboard swipe tutorial covers the form on a new simulator. Tap Continue
   - tap: { x: 0.5, y: 0.949 }
-  - echo: Wait after the tutorial tap
+  - echo: Wait for the tutorial to dismiss
   - wait: 1000
 
   - echo: On Sign in. Tap Change hosting provider
@@ -68,8 +75,6 @@ steps:
 
   - echo: Hosting provider is localhost:3000. Tap the username field
   - tap: { x: 0.53, y: 0.25 }
-  - echo: Wait for username focus
-  - wait: 800
   - echo: Username field is focused. Type alice.test
   - tool: keyboard
     args:
@@ -78,15 +83,17 @@ steps:
 
   - echo: Username is entered. Tap the password field
   - tap: { x: 0.53, y: 0.343 }
-  - echo: Wait for password focus
-  - wait: 800
-  - echo: Password field is focused. Type the mock password
-  - tool: keyboard
+  - echo: Password field is focused. Type the mock password and submit
+  - tool: run-sequence
     args:
-      text: '{{secret:MOCK_PASSWORD}}'
-      delayMs: 40
-  - echo: Password is entered. Tap Sign in
-  - tap: { x: 0.5, y: 0.455 }
+      steps:
+        - tool: keyboard
+          args:
+            text: '{{secret:MOCK_PASSWORD}}'
+            delayMs: 40
+        - tool: keyboard
+          args:
+            key: enter
   - echo: Wait for first-install prompts after submit
   - wait: 4000
 
