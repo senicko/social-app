@@ -23,7 +23,8 @@ case "${1:-}" in
       exit 1
     fi
     mkdir -p media
-    sim-remote simctl io "$SIM_UDID" recordVideo --codec h264 --force "media/$name.mp4" \
+    # sim-remote implements recordVideo itself and does not forward --codec.
+    sim-remote simctl io "$SIM_UDID" recordVideo --force "media/$name.mp4" \
       > ".cursor/cloud/.record-$name.log" 2>&1 &
     echo $! > "$PIDFILE"
     echo "$name" > "$NAMEFILE"
