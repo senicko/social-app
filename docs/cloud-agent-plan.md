@@ -38,7 +38,7 @@ Five facts drive the design:
 
 ### 1.1 Argent Cloud
 
-- The `sim-remote` binary comes from the public release https://github.com/software-mansion/sim-remote-releases/releases/tag/softu. The Dockerfile downloads it (and the companion `sim-remote-daemon`, the same binary under the name the CLI spawns) for the image's architecture into `/usr/local/bin`. No secret, no script.
+- The `sim-remote` binary comes from the public release https://github.com/software-mansion/sim-remote-releases/releases/tag/softu. The Dockerfile downloads the x86_64 build (and the companion `sim-remote-daemon`, the same binary under the name the CLI spawns) into `/usr/local/bin`. No secret, no script. Cursor's VMs are x86_64; local test builds use `--platform linux/amd64`.
 - A username and API key for the agent, stored as the secrets `SIM_ROUTER_USERNAME` and `SIM_ROUTER_API_KEY` (the exact names `sim-remote login` reads). The sim-router server URL is baked into the binary (`--server`, env `SIM_ROUTER_URL`, default `https://77.42.125.138:3030` in the `softu` release); set `SIM_ROUTER_URL` only if your fleet moves.
 - Fleet etiquette the prompt must enforce: one `login` per run (done by `start.sh`), `sim-remote logout` at the end, never leave a machine leased. `login` waits for a free runner (`start.sh` uses a 300 s timeout).
 
