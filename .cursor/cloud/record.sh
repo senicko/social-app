@@ -31,9 +31,9 @@ case "${1:-}" in
     echo "recording media/$name.mp4"
     ;;
   stop)
-    # The output path is the last argument of the running recordVideo command.
+    # The output path is the .mp4 argument of the running recordVideo command.
     pid="$(pgrep -f "simctl io .* recordVideo" | head -1 || true)"
-    file="$([ -n "$pid" ] && ps -o args= -p "$pid" | awk '{print $NF}')"
+    file="$([ -n "$pid" ] && ps -o args= -p "$pid" | tr ' ' '\n' | grep -m1 '\.mp4$')"
     [ -n "$file" ] || { echo "no recording is running" >&2; exit 1; }
     pkill -INT -f "simctl io .* recordVideo"
     for _ in $(seq 60); do pgrep -f "simctl io .* recordVideo" >/dev/null || break; sleep 1; done
