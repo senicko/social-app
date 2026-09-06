@@ -63,7 +63,8 @@ sim-remote reverse status
 
 {
   echo "SIM_UDID=$UDID"
-  echo "SIM_DEVICE_NAME=$DEVICE_NAME"
+  # Quote the name: unquoted "iPhone 17 Pro" breaks `source session.env`.
+  printf 'SIM_DEVICE_NAME=%q\n' "$DEVICE_NAME"
   echo "METRO_PORT=$METRO_PORT"
   echo "PDS_PORT=$PDS_PORT"
   cat .cursor/cloud/mock.env

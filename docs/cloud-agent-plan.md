@@ -130,7 +130,7 @@ The image installs `@swmansion/argent` globally, so the command resolves from `P
 
 | File                                 | Runs                   | What it does                                                                                                                                                    |
 | ------------------------------------ | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `.cursor/Dockerfile`                 | image build            | Ubuntu 24.04, Node 24, pnpm 11.21, eas-cli, gh 2.99+, argent (global, for the MCP server), ffmpeg, gifsicle, jq, PostgreSQL, Redis; non-root `ubuntu` user with sudo. |
+| `.cursor/Dockerfile`                 | image build            | Ubuntu 24.04, Node 24, pnpm 11.21, eas-cli, gh 2.99+, argent (global, for the MCP server; install scripts run so the MoQ/WebTransport native addon builds), ffmpeg, gifsicle, jq, PostgreSQL, Redis; non-root `ubuntu` user with sudo. |
 | `.cursor/cloud/install.sh`           | `install` (build time) | `pnpm install --frozen-lockfile` for the app and for `dev-env/`, creates `.env` and `google-services.json` from the examples, installs sim-remote.              |
 | `.cursor/cloud/ensure-sim-remote.sh` | install + start        | Fetches sim-remote and sim-remote-daemon for the current architecture from the public release (overridable by `SIM_REMOTE_DOWNLOAD_URL`) into `/usr/local/bin`. |
 | `.cursor/cloud/mock-backend.sh`      | start; agent as needed | `services` / `start` / `seed` / `status` / `stop` for Postgres, Redis and the dev-env mock server; writes `EXPO_PUBLIC_BLUESKY_PROXY_DID` into `.env`.          |

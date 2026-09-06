@@ -14,6 +14,12 @@
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
+# Prefer the image Node 24 over Cursor's /exec-daemon/node (v22). eas build
+# loads metro.config.ts and needs Node >=24 (or strip-types on 22.6+).
+if [ -x /usr/bin/node ]; then
+  export PATH="/usr/bin:${PATH}"
+fi
+
 PROFILE="${EAS_PROFILE:-dev-sim}"
 OUT=build
 TARBALL="$OUT/dev-client.tar.gz"

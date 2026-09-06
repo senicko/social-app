@@ -21,11 +21,14 @@ RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
  && npm cache clean --force
 
 # argent, globally, so the MCP server registered for cloud agents is simply
-# `argent mcp` and does not depend on the working directory. --ignore-scripts
-# skips node-gyp for optional native deps (node-pty ships a prebuilt binary,
-# tree-sitter has linux-x64 prebuilds, the MoQ video module is not needed for
-# ios-remote screenshots); npm 11 skips those scripts for global installs anyway.
-RUN npm install -g --ignore-scripts --no-audit --no-fund @swmansion/argent \
+# `argent mcp` and does not depend on the working directory. The MoQ/WebTransport
+# native addon (@fails-components/webtransport-transport-http3-quiche) MUST be
+# built: ios-remote screenshot/describe/gesture tools talk to the runner over
+# HTTP/3 QUIC, and without webtransport.node every call fails with
+# "Opening handshake failed". Do not use --ignore-scripts here. node-pty and
+# tree-sitter ship prebuilds; only the quiche transport needs a compile.
+RUN npm install -g --no-audit --no-fund @swmansion/argent \
+ && node -e "require('@fails-components/webtransport-transport-http3-quiche'); console.log('webtransport ok')" \
  && argent --version
 
 RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
