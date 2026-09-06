@@ -8,6 +8,9 @@
 # dev-env/test-pds.ts). Seed query: MOCK_SEED (default users&follows&posts&thread&feeds).
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
+
+# Cursor prepends its own /exec-daemon/node (v22) to PATH; prefer the image's Node 24.
+export PATH="/usr/bin:$PATH"
 export NODE_ENV=development PGHOST=localhost PGPORT=5433 PGUSER=pg PGPASSWORD=password PGDATABASE=postgres
 export DB_POSTGRES_URL=postgresql://pg:password@127.0.0.1:5433/postgres REDIS_HOST=127.0.0.1:6380
 

@@ -5,6 +5,9 @@
 # Needs eas-cli authenticated (EXPO_TOKEN secret). Prints the Bluesky.app path on the last line.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
+
+# Cursor prepends its own /exec-daemon/node (v22) to PATH; prefer the image's Node 24.
+export PATH="/usr/bin:$PATH"
 eas whoami >/dev/null 2>&1 || { echo "eas-cli is not authenticated; set the EXPO_TOKEN secret" >&2; exit 1; }
 
 if [ "${1:-}" = "--reuse-latest" ]; then

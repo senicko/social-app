@@ -17,6 +17,9 @@ set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
+# Cursor prepends its own /exec-daemon/node (v22) to PATH; prefer the image's Node 24.
+export PATH="/usr/bin:$PATH"
+
 : "${SIM_ROUTER_USERNAME:?Cursor secret SIM_ROUTER_USERNAME is missing}"
 : "${SIM_ROUTER_API_KEY:?Cursor secret SIM_ROUTER_API_KEY is missing}"
 
@@ -26,12 +29,13 @@ SIM_NAME="cloud-agent-$(cut -c1-8 /proc/sys/kernel/random/uuid)"
 bash .cursor/cloud/mock-backend.sh start
 sim-remote login --timeout 300
 
-# Sweep simulators left behind by earlier runs on this runner.
+# Sweep simulators left behind by crashed runs on this runner. Only shut-down
+# ones: a live run's simulator is booted from `bootstatus -b` until that run's
+# own cleanup, so this never touches a parallel agent that shares the runner.
 sim-remote simctl list devices --json \
-  | jq -r '.devices[][] | select(.name | startswith("cloud-agent-")) | .udid' \
+  | jq -r '.devices[][] | select((.name | startswith("cloud-agent-")) and .state == "Shutdown") | .udid' \
   | while read -r old; do
       echo "Deleting leftover simulator $old"
-      sim-remote simctl shutdown "$old" 2>/dev/null || true
       sim-remote simctl delete "$old"
     done
 
