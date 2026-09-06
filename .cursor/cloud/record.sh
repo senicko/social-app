@@ -19,8 +19,12 @@ case "${1:-}" in
     fi
     mkdir -p media
     # sim-remote implements recordVideo itself and rejects --codec.
+    # set -m: a background job of a non-interactive shell would otherwise start
+    # with SIGINT ignored, and `stop` relies on SIGINT to end the recording.
+    set -m
     nohup sim-remote simctl io "$SIM_UDID" recordVideo --force "media/$name.mp4" \
       >.cursor/cloud/record.log 2>&1 &
+    set +m
     sleep 2
     # Catch an immediate failure (bad flag, no session) instead of finding out at stop.
     pgrep -f "simctl io .* recordVideo" >/dev/null || { echo "recordVideo exited immediately:" >&2; cat .cursor/cloud/record.log >&2; exit 1; }
@@ -28,7 +32,8 @@ case "${1:-}" in
     ;;
   stop)
     # The output path is the last argument of the running recordVideo command.
-    file="$(pgrep -af "simctl io .* recordVideo" | head -1 | awk '{print $NF}')"
+    pid="$(pgrep -f "simctl io .* recordVideo" | head -1 || true)"
+    file="$([ -n "$pid" ] && ps -o args= -p "$pid" | awk '{print $NF}')"
     [ -n "$file" ] || { echo "no recording is running" >&2; exit 1; }
     pkill -INT -f "simctl io .* recordVideo"
     for _ in $(seq 60); do pgrep -f "simctl io .* recordVideo" >/dev/null || break; sleep 1; done
