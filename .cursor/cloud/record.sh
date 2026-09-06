@@ -33,8 +33,9 @@ case "${1:-}" in
   stop)
     # The output path is the .mp4 argument of the running recordVideo command.
     pid="$(pgrep -f "^sim-remote simctl io .* recordVideo" | head -1 || true)"
-    file="$([ -n "$pid" ] && ps -o args= -p "$pid" | tr ' ' '\n' | grep -m1 '\.mp4$')"
-    [ -n "$file" ] || { echo "no recording is running" >&2; exit 1; }
+    [ -n "$pid" ] || { echo "no recording is running" >&2; exit 1; }
+    file="$(ps -o args= -p "$pid" | tr ' ' '\n' | grep -m1 '\.mp4$' || true)"
+    [ -n "$file" ] || { echo "cannot find the output path of recordVideo (pid $pid)" >&2; exit 1; }
     pkill -INT -f "^sim-remote simctl io .* recordVideo"
     for _ in $(seq 60); do pgrep -f "^sim-remote simctl io .* recordVideo" >/dev/null || break; sleep 1; done
     [ -s "$file" ] || { echo "$file is missing or empty; recordVideo output:" >&2; cat .cursor/cloud/record.log >&2; exit 1; }
