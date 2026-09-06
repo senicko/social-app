@@ -22,7 +22,7 @@ steps:
   - echo: System asks Open in Bluesky. Tap Open
   - tap: { x: 0.684, y: 0.543 }
   - echo: Wait for the first JS bundle and Expo developer-menu intro
-  - wait: 45000
+  - wait: 25000
 
   - echo: Expo developer-menu intro is visible. Tap Continue
   - tap: { x: 0.5, y: 0.914 }
@@ -36,12 +36,12 @@ steps:
 
   - echo: On logged-out splash. Tap Sign in
   - tap: { x: 0.501, y: 0.927 }
-  - echo: Wait for the sign-in form and keyboard tutorial
+  - echo: Wait for the sign-in form. A first-boot keyboard tutorial may cover it
   - wait: 2000
 
-  - echo: Keyboard swipe tutorial covers the form. Tap Continue to dismiss it
+  - echo: Dismiss the keyboard swipe tutorial if it is showing. Harmless bottom tap otherwise
   - tap: { x: 0.5, y: 0.949 }
-  - echo: Wait for the tutorial to dismiss
+  - echo: Wait after the tutorial tap
   - wait: 1000
 
   - echo: On Sign in. Tap Change hosting provider
@@ -68,6 +68,8 @@ steps:
 
   - echo: Hosting provider is localhost:3000. Tap the username field
   - tap: { x: 0.53, y: 0.25 }
+  - echo: Wait for username focus
+  - wait: 800
   - echo: Username field is focused. Type alice.test
   - tool: keyboard
     args:
@@ -76,17 +78,15 @@ steps:
 
   - echo: Username is entered. Tap the password field
   - tap: { x: 0.53, y: 0.343 }
-  - echo: Password field is focused. Type the mock password and submit
-  - tool: run-sequence
+  - echo: Wait for password focus
+  - wait: 800
+  - echo: Password field is focused. Type the mock password
+  - tool: keyboard
     args:
-      steps:
-        - tool: keyboard
-          args:
-            text: '{{secret:MOCK_PASSWORD}}'
-            delayMs: 40
-        - tool: keyboard
-          args:
-            key: enter
+      text: '{{secret:MOCK_PASSWORD}}'
+      delayMs: 40
+  - echo: Password is entered. Tap Sign in
+  - tap: { x: 0.5, y: 0.455 }
   - echo: Wait for first-install prompts after submit
   - wait: 4000
 
