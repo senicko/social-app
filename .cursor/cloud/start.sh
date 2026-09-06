@@ -7,14 +7,11 @@
 #
 #   2. Argent Cloud: lease a runner, create a fresh simulator for this run
 #      (cloud-agent-<random>), boot it, and tunnel this VM's Metro (8081) and
-#      mock PDS (3000) into it as the simulator's localhost. Leftover
-#      cloud-agent-* simulators from crashed runs on the same runner are
-#      deleted first; a lease is exclusive, so they can only be ours.
+#      mock PDS (3000) into it as the simulator's localhost.
 #
-# Writes .cursor/cloud/session.env (SIM_UDID, MOCK_*) for the agent.
-# Secrets: SIM_ROUTER_USERNAME, SIM_ROUTER_API_KEY.
-# Optional: SIM_DEVICE_TYPE (default "iPhone 17 Pro"; falls back to the newest
-#           iPhone Pro the runner's Xcode knows).
+# Writes    .cursor/cloud/session.env (SIM_UDID, MOCK_*) for the agent.
+# Secrets:  SIM_ROUTER_USERNAME, SIM_ROUTER_API_KEY.
+# Optional: SIM_DEVICE_TYPE (default "iPhone 17 Pro")
 
 set -euo pipefail
 
