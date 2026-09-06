@@ -24,8 +24,7 @@ cd "$(git rev-parse --show-toplevel)"
 : "${SIM_ROUTER_API_KEY:?Cursor secret SIM_ROUTER_API_KEY is missing}"
 
 DEVICE_TYPE="${SIM_DEVICE_TYPE:-iPhone 17 Pro}"
-SIM_NAME="cloud-agent-$(cat /proc/sys/kernel/random/uuid 2>/dev/null || uuidgen | tr 'A-Z' 'a-z')"
-SIM_NAME="${SIM_NAME:0:20}"
+SIM_NAME="cloud-agent-$(cut -c1-8 /proc/sys/kernel/random/uuid)"
 
 bash .cursor/cloud/mock-backend.sh start
 sim-remote login --timeout 300
