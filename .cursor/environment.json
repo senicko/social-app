@@ -2,12 +2,12 @@
   "build": {
     "dockerfile": "Dockerfile"
   },
-  "install": "bash .cursor/cloud/install.sh",
+  "install": "pnpm install --frozen-lockfile && pnpm --dir dev-env install --frozen-lockfile",
   "start": "bash .cursor/cloud/start.sh",
   "terminals": [
     {
       "name": "metro",
-      "command": "bash .cursor/cloud/metro.sh"
+      "command": "CI=1 node_modules/expo/bin/cli start --dev-client --port 8081"
     }
   ]
 }
