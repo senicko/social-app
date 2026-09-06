@@ -2,101 +2,118 @@
 # Replay from a fresh install (reinstall xyz.blueskyweb.app first).
 # Requires Metro on :8081, mock PDS on :3000, and ARGENT_SECRET_MOCK_PASSWORD
 # (or MOCK_PASSWORD in .argent/secrets.env).
+#
+# ios-remote has no runner UI tree: selector await/idle/type/tap cannot resolve.
+# This flow keeps the recorded coordinate taps and keyboard steps. Fixed waits
+# cover the Expo first-bundle and post-submit transitions.
 steps:
   - echo: Restart Bluesky. Expect the Expo development client
   - launch: xyz.blueskyweb.app
-  - await: { idle: true }
+  - echo: Wait for the Expo launcher to appear
+  - wait: 2000
 
   - echo: On Expo launcher. Open the Metro development client URL
   - tool: open-url
     args:
       url: exp+social-app-demo://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081
-  - await: { visible: { text: 'Open in' }, timeout: 30000 }
-  - await: { idle: true }
+  - echo: Wait for the Open in Bluesky system prompt
+  - wait: 3000
 
   - echo: System asks Open in Bluesky. Tap Open
-  - tap: { text: Open }
+  - tap: { x: 0.684, y: 0.543 }
+  - echo: Wait for the first JS bundle and Expo developer-menu intro
+  - wait: 45000
 
   - echo: Expo developer-menu intro is visible. Tap Continue
-  - await: { visible: { text: Continue }, timeout: 120000 }
-  - await: { idle: true }
-  - tap: { text: Continue }
+  - tap: { x: 0.5, y: 0.914 }
+  - echo: Wait for the developer menu after Continue
+  - wait: 1500
 
   - echo: Expo developer menu is open. Tap Close
-  - await: { visible: { text: Close } }
-  - await: { idle: true }
-  - tap: { text: Close }
+  - tap: { x: 0.899, y: 0.479 }
+  - echo: Wait for the logged-out splash
+  - wait: 2000
 
   - echo: On logged-out splash. Tap Sign in
-  - await: { visible: { id: signInButton } }
-  - await: { idle: true }
-  - tap: { id: signInButton }
+  - tap: { x: 0.501, y: 0.927 }
+  - echo: Wait for the sign-in form and keyboard tutorial
+  - wait: 2000
 
   - echo: Keyboard swipe tutorial covers the form. Tap Continue to dismiss it
-  - await: { visible: { text: Continue } }
-  - await: { idle: true }
-  - tap: { text: Continue }
+  - tap: { x: 0.5, y: 0.949 }
+  - echo: Wait for the tutorial to dismiss
+  - wait: 1000
 
   - echo: On Sign in. Tap Change hosting provider
-  - await: { visible: { id: selectServiceButton } }
-  - await: { idle: true }
-  - tap: { id: selectServiceButton }
+  - tap: { x: 0.5, y: 0.588 }
+  - echo: Wait for the hosting provider sheet
+  - wait: 1500
 
   - echo: Hosting provider sheet is open. Tap Manual
-  - await: { visible: { id: manualSelectBtn } }
-  - await: { idle: true }
-  - tap: { id: manualSelectBtn }
+  - tap: { x: 0.707, y: 0.72 }
+  - echo: Wait for the Manual server field
+  - wait: 1000
 
-  - echo: Manual tab is selected. Type the mock PDS URL
-  - await: { visible: { id: customServerTextInput } }
-  - await: { idle: true }
-  - type:
-      on: { id: customServerTextInput }
+  - echo: Manual tab is selected. Tap the server address field
+  - tap: { x: 0.529, y: 0.801 }
+  - echo: Server field is focused. Type the mock PDS URL
+  - tool: keyboard
+    args:
       text: 'http://localhost:3000'
-      submit: false
-
+      delayMs: 40
   - echo: Mock PDS URL is entered. Tap Done
-  - tap: { id: doneBtn }
+  - tap: { x: 0.5, y: 0.573 }
+  - echo: Wait for the hosting sheet to close
+  - wait: 1500
 
-  - echo: Hosting provider is localhost:3000. Type alice.test
-  - await: { visible: { id: loginUsernameInput } }
-  - await: { idle: true }
-  - type:
-      on: { id: loginUsernameInput }
+  - echo: Hosting provider is localhost:3000. Tap the username field
+  - tap: { x: 0.53, y: 0.25 }
+  - echo: Username field is focused. Type alice.test
+  - tool: keyboard
+    args:
       text: alice.test
-      submit: false
+      delayMs: 40
 
-  - echo: Username is entered. Type the mock password and submit
-  - type:
-      on: { id: loginPasswordInput }
-      text: '{{secret:MOCK_PASSWORD}}'
+  - echo: Username is entered. Tap the password field
+  - tap: { x: 0.53, y: 0.343 }
+  - echo: Password field is focused. Type the mock password and submit
+  - tool: run-sequence
+    args:
+      steps:
+        - tool: keyboard
+          args:
+            text: '{{secret:MOCK_PASSWORD}}'
+            delayMs: 40
+        - tool: keyboard
+          args:
+            key: enter
+  - echo: Wait for first-install prompts after submit
+  - wait: 4000
 
   - echo: iOS notifications prompt is visible. Tap Don't Allow
-  - await: { visible: { text: Would Like to Send You Notifications }, timeout: 15000 }
-  - await: { idle: true }
-  - tap: { text: "Don't Allow" }
+  - tap: { x: 0.316, y: 0.593 }
+  - echo: Wait for the Save Password prompt
+  - wait: 1500
 
   - echo: iOS Save Password prompt is visible. Tap Not Now
-  - await: { visible: { text: Save Password? } }
-  - await: { idle: true }
-  - tap: { text: Not Now }
+  - tap: { x: 0.316, y: 0.626 }
+  - echo: Wait for the Age Assurance screen
+  - wait: 1500
 
   - echo: Age Assurance screen is visible. Tap Add your birthdate
-  - await: { visible: { text: Age Assurance } }
-  - await: { idle: true }
-  - tap: { text: Click here to update your birthdate }
+  - tap: { x: 0.501, y: 0.406 }
+  - echo: Wait for the birthdate sheet
+  - wait: 1500
 
   - echo: Birthdate sheet is open with the default date. Tap Save
-  - await: { visible: { text: Save birthdate } }
-  - await: { idle: true }
-  - tap: { text: Save birthdate }
+  - tap: { x: 0.5, y: 0.941 }
+  - echo: Wait for the email verification sheet
+  - wait: 3000
 
   - echo: Email verification sheet is visible. Tap Maybe later
-  - await: { visible: { text: Please verify your email } }
-  - await: { idle: true }
-  - tap: { text: Maybe later }
+  - tap: { x: 0.5, y: 0.941 }
+  - echo: Wait for the Following feed
+  - wait: 2000
 
   - echo: On the Following feed. Login succeeded
-  - await: { visible: { id: bottomBarHomeBtn } }
-  - await: { idle: true }
   - tool: screenshot
