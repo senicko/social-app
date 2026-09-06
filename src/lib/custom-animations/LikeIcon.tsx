@@ -85,7 +85,7 @@ export function AnimatedLikeIcon({
         {isLiked ? (
           <Animated.View
             entering={shouldAnimate ? keyframe.duration(300) : undefined}>
-            <HeartIconFilled style={{color: t.palette.pink}} width={size} />
+            <HeartIconFilled style={{color: '#F97316'}} width={size} />
           </Animated.View>
         ) : (
           <HeartIconOutline
@@ -99,7 +99,7 @@ export function AnimatedLikeIcon({
               entering={circle1Keyframe.duration(300)}
               style={{
                 position: 'absolute',
-                backgroundColor: t.palette.pink,
+                backgroundColor: '#F97316',
                 top: 0,
                 left: 0,
                 width: size,

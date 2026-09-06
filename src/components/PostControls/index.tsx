@@ -18,7 +18,7 @@ import {
   ProgressGuideAction,
   useProgressGuideControls,
 } from '#/state/shell/progress-guide'
-import {atoms as a, useBreakpoints, useTheme} from '#/alf'
+import {atoms as a, useBreakpoints} from '#/alf'
 import {Reply as Bubble} from '#/components/icons/Reply'
 import {useFormatPostStatCount} from '#/components/PostControls/util'
 import * as Skele from '#/components/Skeleton'
@@ -69,7 +69,6 @@ let PostControls = ({
   forceGoogleTranslate?: boolean
 }): React.ReactNode => {
   const ax = useAnalytics()
-  const t = useTheme()
   const {t: l} = useLingui()
   const {openComposer} = useOpenComposer()
   const {feedDescriptor} = useFeedFeedbackContext()
@@ -267,7 +266,7 @@ let PostControls = ({
             testID="likeBtn"
             big={big}
             active={Boolean(post.viewer?.like)}
-            activeColor={t.palette.pink}
+            activeColor="#F97316"
             onPress={() => requireAuth(() => onPressToggleLike())}
             label={
               post.viewer?.like
