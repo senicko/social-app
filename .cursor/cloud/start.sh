@@ -1,27 +1,33 @@
 #!/usr/bin/env bash
 
-# Runs at the start of every Cursor cloud agent run, before the terminals.
+# start.sh
 #
-#   1. Local Bluesky network (Postgres, Redis, dev-env mock server), seeded. The
-#      appview DID is written to .env so the Metro terminal inlines it.
+# Runs once at the start of every Cursor cloud agent run.
+# Starts before the Metro terminal.
 #
-#   2. Argent Cloud: lease a runner, create a fresh simulator for this run
-#      (cloud-agent-<random>), boot it, and tunnel this VM's Metro (8081) and
-#      mock PDS (3000) into it as the simulator's localhost.
+# What it does
+#   1. Start and seed the mock Bluesky network
+#   2. Lease an Argent Cloud runner
+#   3. Create and boot a fresh cloud-agent-* simulator
+#   4. Tunnel Metro (8081) and mock PDS (3000) into that simulator
+#   5. Write .cursor/cloud/session.env for the agent
 #
-# Writes    .cursor/cloud/session.env (SIM_UDID, MOCK_*) for the agent.
-# Secrets:  SIM_ROUTER_USERNAME, SIM_ROUTER_API_KEY.
-# Optional: SIM_DEVICE_TYPE (default "iPhone 17 Pro")
+# Required secrets
+#   SIM_ROUTER_USERNAME
+#   SIM_ROUTER_API_KEY
+#
+# Optional env
+#   SIM_DEVICE_TYPE   Device type to create (default iPhone 17 Pro)
 
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
-# Cursor prepends its own /exec-daemon/node (v22) to PATH; prefer the image's Node 24.
+# Cursor prepends its own Node 22 on PATH. Prefer the image Node 24.
 export PATH="/usr/bin:$PATH"
 
-: "${SIM_ROUTER_USERNAME:?Cursor secret SIM_ROUTER_USERNAME is missing}"
-: "${SIM_ROUTER_API_KEY:?Cursor secret SIM_ROUTER_API_KEY is missing}"
+: "${SIM_ROUTER_USERNAME:?SIM_ROUTER_USERNAME is missing}"
+: "${SIM_ROUTER_API_KEY:?SIM_ROUTER_API_KEY is missing}"
 
 DEVICE_TYPE="${SIM_DEVICE_TYPE:-iPhone 17 Pro}"
 SIM_NAME="cloud-agent-$(cut -c1-8 /proc/sys/kernel/random/uuid)"
@@ -29,9 +35,8 @@ SIM_NAME="cloud-agent-$(cut -c1-8 /proc/sys/kernel/random/uuid)"
 bash .cursor/cloud/mock-backend.sh start
 sim-remote login --timeout 300
 
-# Sweep simulators left behind by crashed runs on this runner. Only shut-down
-# ones: a live run's simulator is booted from `bootstatus -b` until that run's
-# own cleanup, so this never touches a parallel agent that shares the runner.
+# Delete shut-down cloud-agent leftovers from crashed runs.
+# Skip booted ones. Those belong to a live parallel run.
 sim-remote simctl list devices --json \
   | jq -r '.devices[][] | select((.name | startswith("cloud-agent-")) and .state == "Shutdown") | .udid' \
   | while read -r old; do
@@ -48,7 +53,7 @@ devtype="$(sim-remote simctl list devicetypes --json \
 if [ -z "$devtype" ]; then
   devtype="$(sim-remote simctl list devicetypes --json \
     | jq -r '[.devicetypes[] | select(.name | test("^iPhone [0-9]+( Pro)?$")) | {identifier, n: (.name | capture("iPhone (?<n>[0-9]+)").n | tonumber), pro: (.name | endswith("Pro"))}] | sort_by(.n, .pro) | last | .identifier // empty')"
-  echo "Device type '$DEVICE_TYPE' is not on this runner; using $devtype"
+  echo "Device type '$DEVICE_TYPE' is not on this runner. Using $devtype"
 fi
 
 [ -n "$runtime" ] && [ -n "$devtype" ] || { echo "No available iOS runtime or iPhone device type on the leased runner" >&2; exit 1; }
@@ -65,4 +70,4 @@ done
 
 sim-remote reverse status
 { echo "SIM_UDID=$UDID"; echo "SIM_NAME=$SIM_NAME"; cat .cursor/cloud/mock.env; } > .cursor/cloud/session.env
-echo "Simulator $SIM_NAME ($UDID) is booted; it reaches Metro at localhost:8081 and the mock PDS at localhost:3000."
+echo "Simulator $SIM_NAME ($UDID) is booted. It reaches Metro at localhost:8081 and the mock PDS at localhost:3000."
