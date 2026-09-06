@@ -73,7 +73,11 @@ export function AnimatedLikeIcon({
       {isLiked ? (
         // @ts-expect-error is div
         <View ref={likeIconRef}>
-          <HeartIconFilled style={{color: '#F97316'}} width={size} />
+          <HeartIconFilled
+            fill="#F97316"
+            style={{color: '#F97316'}}
+            width={size}
+          />
         </View>
       ) : (
         <HeartIconOutline
