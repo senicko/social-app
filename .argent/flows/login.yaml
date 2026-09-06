@@ -1,0 +1,102 @@
+# Bluesky social-app login against the local mock PDS.
+# Replay from a fresh install (reinstall xyz.blueskyweb.app first).
+# Requires Metro on :8081, mock PDS on :3000, and ARGENT_SECRET_MOCK_PASSWORD
+# (or MOCK_PASSWORD in .argent/secrets.env).
+steps:
+  - echo: Restart Bluesky. Expect the Expo development client
+  - launch: xyz.blueskyweb.app
+  - await: { idle: true }
+
+  - echo: On Expo launcher. Open the Metro development client URL
+  - tool: open-url
+    args:
+      url: exp+social-app-demo://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081
+  - await: { visible: { text: 'Open in' }, timeout: 30000 }
+  - await: { idle: true }
+
+  - echo: System asks Open in Bluesky. Tap Open
+  - tap: { text: Open }
+
+  - echo: Expo developer-menu intro is visible. Tap Continue
+  - await: { visible: { text: Continue }, timeout: 120000 }
+  - await: { idle: true }
+  - tap: { text: Continue }
+
+  - echo: Expo developer menu is open. Tap Close
+  - await: { visible: { text: Close } }
+  - await: { idle: true }
+  - tap: { text: Close }
+
+  - echo: On logged-out splash. Tap Sign in
+  - await: { visible: { id: signInButton } }
+  - await: { idle: true }
+  - tap: { id: signInButton }
+
+  - echo: Keyboard swipe tutorial covers the form. Tap Continue to dismiss it
+  - await: { visible: { text: Continue } }
+  - await: { idle: true }
+  - tap: { text: Continue }
+
+  - echo: On Sign in. Tap Change hosting provider
+  - await: { visible: { id: selectServiceButton } }
+  - await: { idle: true }
+  - tap: { id: selectServiceButton }
+
+  - echo: Hosting provider sheet is open. Tap Manual
+  - await: { visible: { id: manualSelectBtn } }
+  - await: { idle: true }
+  - tap: { id: manualSelectBtn }
+
+  - echo: Manual tab is selected. Type the mock PDS URL
+  - await: { visible: { id: customServerTextInput } }
+  - await: { idle: true }
+  - type:
+      on: { id: customServerTextInput }
+      text: 'http://localhost:3000'
+      submit: false
+
+  - echo: Mock PDS URL is entered. Tap Done
+  - tap: { id: doneBtn }
+
+  - echo: Hosting provider is localhost:3000. Type alice.test
+  - await: { visible: { id: loginUsernameInput } }
+  - await: { idle: true }
+  - type:
+      on: { id: loginUsernameInput }
+      text: alice.test
+      submit: false
+
+  - echo: Username is entered. Type the mock password and submit
+  - type:
+      on: { id: loginPasswordInput }
+      text: '{{secret:MOCK_PASSWORD}}'
+
+  - echo: iOS notifications prompt is visible. Tap Don't Allow
+  - await: { visible: { text: Would Like to Send You Notifications }, timeout: 15000 }
+  - await: { idle: true }
+  - tap: { text: "Don't Allow" }
+
+  - echo: iOS Save Password prompt is visible. Tap Not Now
+  - await: { visible: { text: Save Password? } }
+  - await: { idle: true }
+  - tap: { text: Not Now }
+
+  - echo: Age Assurance screen is visible. Tap Add your birthdate
+  - await: { visible: { text: Age Assurance } }
+  - await: { idle: true }
+  - tap: { text: Click here to update your birthdate }
+
+  - echo: Birthdate sheet is open with the default date. Tap Save
+  - await: { visible: { text: Save birthdate } }
+  - await: { idle: true }
+  - tap: { text: Save birthdate }
+
+  - echo: Email verification sheet is visible. Tap Maybe later
+  - await: { visible: { text: Please verify your email } }
+  - await: { idle: true }
+  - tap: { text: Maybe later }
+
+  - echo: On the Following feed. Login succeeded
+  - await: { visible: { id: bottomBarHomeBtn } }
+  - await: { idle: true }
+  - tool: screenshot
