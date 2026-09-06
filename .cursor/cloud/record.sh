@@ -14,16 +14,26 @@ source .cursor/cloud/session.env
 case "${1:-}" in
   start)
     name="${2:?usage: record.sh start <name>}"
+    if pgrep -f "simctl io .* recordVideo" >/dev/null; then
+      echo "a recording is already running; stop it first" >&2; exit 1
+    fi
     mkdir -p media
     # sim-remote implements recordVideo itself and rejects --codec.
     nohup sim-remote simctl io "$SIM_UDID" recordVideo --force "media/$name.mp4" \
       >.cursor/cloud/record.log 2>&1 &
+    sleep 2
+    # Catch an immediate failure (bad flag, no session) instead of finding out at stop.
+    pgrep -f "simctl io .* recordVideo" >/dev/null || { echo "recordVideo exited immediately:" >&2; cat .cursor/cloud/record.log >&2; exit 1; }
     echo "recording media/$name.mp4"
     ;;
   stop)
-    pkill -INT -f "simctl io .* recordVideo" || { echo "no recording is running" >&2; exit 1; }
+    # The output path is the last argument of the running recordVideo command.
+    file="$(pgrep -af "simctl io .* recordVideo" | head -1 | awk '{print $NF}')"
+    [ -n "$file" ] || { echo "no recording is running" >&2; exit 1; }
+    pkill -INT -f "simctl io .* recordVideo"
     for _ in $(seq 60); do pgrep -f "simctl io .* recordVideo" >/dev/null || break; sleep 1; done
-    ls -l media/*.mp4 | tail -1
+    [ -s "$file" ] || { echo "$file is missing or empty; recordVideo output:" >&2; cat .cursor/cloud/record.log >&2; exit 1; }
+    echo "saved $file ($(ffprobe -v error -show_entries format=duration -of csv=p=0 "$file" 2>/dev/null || echo '?')s)"
     ;;
   *) echo "usage: $0 start <name> | stop" >&2; exit 2 ;;
 esac
