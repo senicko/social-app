@@ -7,5 +7,9 @@
 # tmux.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
+# Prefer the image Node 24 over Cursor's /exec-daemon/node (v22).
+if [ -x /usr/bin/node ]; then
+  export PATH="/usr/bin:${PATH}"
+fi
 export CI=1
 exec node_modules/expo/bin/cli start --dev-client --port "${METRO_PORT:-8081}"
