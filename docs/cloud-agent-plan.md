@@ -41,7 +41,7 @@ Five facts drive the design:
 - The `sim-remote` binary comes from the public release https://github.com/software-mansion/sim-remote-releases/releases/tag/softu. The Dockerfile downloads the x86_64 build (and the companion `sim-remote-daemon`, the same binary under the name the CLI spawns) into `/usr/local/bin`. No secret, no script. Cursor's VMs are x86_64; local test builds use `--platform linux/amd64`.
 - A username and API key for the agent, stored as the secrets `SIM_ROUTER_USERNAME` and `SIM_ROUTER_API_KEY` (the exact names `sim-remote login` reads). The sim-router server URL is baked into the binary (`--server`, env `SIM_ROUTER_URL`, default `https://77.42.125.138:3030` in the `softu` release); set `SIM_ROUTER_URL` only if your fleet moves.
 - Fleet etiquette the prompt must enforce: one `login` per run (done by `start.sh`), `sim-remote logout` at the end, never leave a machine leased. `login` waits for a free runner (`start.sh` uses a 300 s timeout).
-- Nothing on a runner is assumed to exist except Xcode with some iOS runtime. `start.sh` owns a simulator named `cloud-agent`: on a runner that has it, it is reused; otherwise it is created with `simctl create` from the `SIM_DEVICE_TYPE` device type (default iPhone 17 Pro, falling back to the newest iPhone Pro the runner knows) and the newest available iOS runtime. Runners are reused between leases, so the create happens once per runner.
+- Nothing on a runner is assumed to exist except Xcode with some iOS runtime. Every run gets its own simulator: `start.sh` creates `cloud-agent-<random>` with `simctl create` from the `SIM_DEVICE_TYPE` device type (default iPhone 17 Pro, falling back to the newest iPhone Pro the runner knows) and the newest available iOS runtime, so many agents can run at once and none inherits another run's app state. A lease is exclusive ("a machine you're holding is a machine nobody else can use"), so any `cloud-agent-*` simulator already on the runner is a leftover from a crashed run; `start.sh` deletes those first. The run's own simulator is deleted in step 13, because released runners go back to a pool other people use.
 
 ### 1.2 Expo / EAS
 
@@ -132,7 +132,7 @@ The image installs `@swmansion/argent` globally, so the command resolves from `P
 | --------------------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `.cursor/Dockerfile`              | image build           | Ubuntu 24.04 with Node 24, pnpm 11.21, eas-cli, gh 2.99+, argent (global, for `argent mcp`), sim-remote, ffmpeg, jq, PostgreSQL, Redis; non-root `ubuntu` user with sudo. |
 | `.cursor/cloud/mock-backend.sh`   | start; agent (`seed`) | `start`: Postgres cluster on 5433, Redis on 6380, `node dev-env/mock-server.ts` in the background, seed, `EXPO_PUBLIC_BLUESKY_PROXY_DID` written to `.env`. `seed`: rebuild the network. |
-| `.cursor/cloud/start.sh`          | `start` (every run)   | `mock-backend.sh start`, `sim-remote login`, create-or-reuse the `cloud-agent` simulator, boot it, `reverse start` for 8081 and 3000, write `.cursor/cloud/session.env`. |
+| `.cursor/cloud/start.sh`          | `start` (every run)   | `mock-backend.sh start`, `sim-remote login`, delete leftover `cloud-agent-*` simulators, create and boot `cloud-agent-<random>`, `reverse start` for 8081 and 3000, write `.cursor/cloud/session.env`. |
 | `.cursor/cloud/get-dev-client.sh` | agent, step 4         | `eas build --profile dev-sim --json` (waits), download and extract into `build/`; `--reuse-latest` takes the newest finished build instead.                   |
 | `.cursor/cloud/record.sh`         | agent, steps 2, 8, 10 | `start <name>` / `stop`: `sim-remote simctl io <UDID> recordVideo` in the background, SIGINT to stop, waits for the download of `media/<name>.mp4`.           |
 | `.cursor/cloud/pr-body.md`        | agent, step 12        | PR description template; thumbnails in a table, videos attached with `gh --attach`.                                                                            |
@@ -156,7 +156,7 @@ eas whoami                                # authenticated via EXPO_TOKEN
 curl -s http://localhost:3000/xrpc/_health   # {} from the mock PDS
 grep EXPO_PUBLIC_BLUESKY_PROXY_DID .env   # equals MOCK_APPVIEW_DID
 sim-remote list-machines                  # one machine marked with *
-sim-remote simctl list devices booted     # the cloud-agent simulator from start.sh
+sim-remote simctl list devices booted     # the cloud-agent-<random> simulator from start.sh
 sim-remote reverse status                 # SIM_UDID with 8081 and 3000
 curl -s http://localhost:8081/status      # packager-status:running
 ```
@@ -302,10 +302,13 @@ Expect the PR URL followed by four user-attachment URLs (two images, two videos)
 ### Step 13. Clean up (mandatory: the runner is shared)
 
 ```bash
+source .cursor/cloud/session.env
+sim-remote simctl shutdown "$SIM_UDID"
+sim-remote simctl delete "$SIM_UDID"
 sim-remote logout
 ```
 
-That releases the runner and drops both tunnels; the VM itself is discarded after the run, so nothing else needs stopping. Report the PR URL, the EAS build id, and the attachment URLs.
+The delete matters: the runner goes back to a pool other people use, so this run's simulator must not stay behind. `logout` releases the runner and drops both tunnels; the VM itself is discarded after the run, so nothing else needs stopping. If a run dies before this step, the next `start.sh` on that runner deletes the leftover. Report the PR URL, the EAS build id, and the attachment URLs.
 
 ---
 
@@ -313,8 +316,8 @@ That releases the runner and drops both tunnels; the VM itself is discarded afte
 
 ```
 You are working in a Cursor Cloud VM on <owner>/<repo>, branch <base>. There is no simulator on this
-machine. Argent Cloud provides one: .cursor/cloud/start.sh already ran `sim-remote login`, created or reused a
-simulator named cloud-agent (UDID in .cursor/cloud/session.env), booted it and opened `sim-remote reverse start <UDID> 8081` and
+machine. Argent Cloud provides one: .cursor/cloud/start.sh already ran `sim-remote login`, created a fresh
+simulator for this run (UDID and name in .cursor/cloud/session.env), booted it and opened `sim-remote reverse start <UDID> 8081` and
 `... 3000`, so the simulator reaches Metro (terminal "metro", port 8081) and the local mock Bluesky
 network (PDS on port 3000) at its own localhost. The mock network is seeded with alice.test, bob.test
 and carla.test (password hunter2, a public test fixture); nothing you do there is visible outside the VM.
@@ -341,8 +344,8 @@ Follow docs/cloud-agent-plan.md section 3 in order. Rules:
   720p MP4s (alt text #Before / #After). Do not commit media, do not create branches or releases for it.
   Verify with `gh pr view --json body` that four user-attachments URLs are present.
 - Never commit .env, google-services.json, ios/, build/, media/, or generated files under .cursor/cloud/.
-- Always finish with `sim-remote logout`, even on failure. Report the PR URL, the EAS build id, and the
-  attachment URLs.
+- Always finish with the step 13 cleanup (shutdown and delete $SIM_UDID, then `sim-remote logout`), even on
+  failure. Report the PR URL, the EAS build id, and the attachment URLs.
 ```
 
 ---
@@ -367,7 +370,7 @@ Follow docs/cloud-agent-plan.md section 3 in order. Rules:
 | `npx` refuses to run under a mismatched Node; pnpm script wrapper can hang.                             | Commands stall                                | Dockerfile pins Node 24; the Metro terminal calls `node_modules/expo/bin/cli` directly.                                       |
 | Video over the attachment limit (10 MB Free, 100 MB paid) or `gh` older than 2.99.                      | Upload rejected, PR without videos            | Step 11 re-encodes to 720p and checks sizes; the image ships gh 2.100; GIF fallback attaches the same way.                     |
 | `GH_TOKEN` scoped to the wrong repo, or the fork not writable by Cursor's app.                          | Push or PR creation fails                     | Step 1 runs `gh auth status`; use a fork the Cursor GitHub App can write to.                                                  |
-| Runner left leased after a crash.                                                                       | Blocks the fleet                              | `sim-remote logout` is the last step of the prompt, also on failure; humans check `sim-remote list-machines`.                 |
+| Runner left leased, or a simulator left behind, after a crash.                                          | Blocks the fleet, litters a shared runner     | Cleanup is the last step of the prompt, also on failure; `start.sh` deletes leftover `cloud-agent-*` simulators; humans check `sim-remote list-machines`. |
 
 ---
 
@@ -382,6 +385,6 @@ Follow docs/cloud-agent-plan.md section 3 in order. Rules:
 | argent tool-server  | VM (auto-spawned by the MCP server)               | local                                                   | sees the runner's simulators as `ios-remote` after `start.sh`         |
 | EAS artifact        | `build/Debug-iphonesimulator/Bluesky.app` on VM   | `reinstall-app --appPath` / `sim-remote simctl install` | uploaded to the runner automatically                                  |
 | Recordings          | `media/*.mp4`, `media/*-720p.mp4` on the VM       | `.cursor/cloud/record.sh start\|stop`, then ffmpeg      | attached to the PR with `gh --attach`; never committed                |
-| Simulator           | Argent Cloud runner                               | `$SIM_UDID` from `.cursor/cloud/session.env`            | named `cloud-agent`; created on first use, booted in `start.sh`       |
+| Simulator           | Argent Cloud runner                               | `$SIM_UDID` / `$SIM_NAME` from `.cursor/cloud/session.env` | `cloud-agent-<random>`, created and booted in `start.sh`, deleted in step 13 |
 
 Sources: the sim-remote user guide, argent tool-server strings (`ios-remote` platform, `sim-remote` dependency, "remote simulators are unsupported" for recording), Cursor cloud agent docs (https://cursor.com/docs/cloud-agent, https://cursor.com/docs/cloud-agent/setup, https://cursor.com/docs/cloud-agent/builds, https://cursor.com/docs/cloud-agent/security-network), the GitHub changelog on media attachments in the CLI (https://github.blog/changelog/2026-09-01-github-cli-media-in-issues-pull-requests-and-comments/), and this repo's `docs/build.md`, `docs/testing.md`, `dev-env/`, `eas.json`, `app.config.js`, `__e2e__/flows/login.yml`.
