@@ -41,6 +41,7 @@ Five facts drive the design:
 - The `sim-remote` binary comes from the public release https://github.com/software-mansion/sim-remote-releases/releases/tag/softu. The Dockerfile downloads the x86_64 build (and the companion `sim-remote-daemon`, the same binary under the name the CLI spawns) into `/usr/local/bin`. No secret, no script. Cursor's VMs are x86_64; local test builds use `--platform linux/amd64`.
 - A username and API key for the agent, stored as the secrets `SIM_ROUTER_USERNAME` and `SIM_ROUTER_API_KEY` (the exact names `sim-remote login` reads). The sim-router server URL is baked into the binary (`--server`, env `SIM_ROUTER_URL`, default `https://77.42.125.138:3030` in the `softu` release); set `SIM_ROUTER_URL` only if your fleet moves.
 - Fleet etiquette the prompt must enforce: one `login` per run (done by `start.sh`), `sim-remote logout` at the end, never leave a machine leased. `login` waits for a free runner (`start.sh` uses a 300 s timeout).
+- Nothing on a runner is assumed to exist except Xcode with some iOS runtime. `start.sh` owns a simulator named `cloud-agent`: on a runner that has it, it is reused; otherwise it is created with `simctl create` from the `SIM_DEVICE_TYPE` device type (default iPhone 17 Pro, falling back to the newest iPhone Pro the runner knows) and the newest available iOS runtime. Runners are reused between leases, so the create happens once per runner.
 
 ### 1.2 Expo / EAS
 
@@ -88,7 +89,7 @@ Never commit `.env`, `google-services.json`, `ios/`, `build/`, `media/`, or anyt
 | `GH_TOKEN`                           | Runtime Secret       | gh                     | PR creation and media upload; git itself uses Cursor's app.    |
 | `SIM_ROUTER_URL` (optional)          | Environment Variable | sim-remote             | Overrides the sim-router URL baked into the binary.            |
 | `MOCK_SEED` (optional)               | Environment Variable | `mock-backend.sh`      | Seed query; default `users&follows&posts&thread&feeds`.        |
-| `SIM_DEVICE_NAME` (optional)         | Environment Variable | `start.sh`             | Simulator to use; default `iPhone 17 Pro`.                     |
+| `SIM_DEVICE_TYPE` (optional)         | Environment Variable | `start.sh`             | Device type of the simulator `start.sh` creates; default `iPhone 17 Pro`. |
 
 Cursor offers three types. **Runtime Secret**: loaded as an environment variable for every process, but redacted to `[REDACTED]` in the agent's tool results, transcript and commits; use it for every credential, since gh, eas-cli and sim-remote read the variable themselves and the agent never needs the value. **Environment Variable**: visible to the agent; use it for values the agent has to read and reuse. **Build Secret**: only available inside the Docker image build, not to the agent; none is needed here. Secrets are workspace-scoped and injected at agent start; agents created before a secret existed do not see it.
 
@@ -131,7 +132,7 @@ The image installs `@swmansion/argent` globally, so the command resolves from `P
 | --------------------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `.cursor/Dockerfile`              | image build           | Ubuntu 24.04 with Node 24, pnpm 11.21, eas-cli, gh 2.99+, argent (global, for `argent mcp`), sim-remote, ffmpeg, jq, PostgreSQL, Redis; non-root `ubuntu` user with sudo. |
 | `.cursor/cloud/mock-backend.sh`   | start; agent (`seed`) | `start`: Postgres cluster on 5433, Redis on 6380, `node dev-env/mock-server.ts` in the background, seed, `EXPO_PUBLIC_BLUESKY_PROXY_DID` written to `.env`. `seed`: rebuild the network. |
-| `.cursor/cloud/start.sh`          | `start` (every run)   | `mock-backend.sh start`, `sim-remote login`, boot the simulator, `reverse start` for 8081 and 3000, write `.cursor/cloud/session.env`.                          |
+| `.cursor/cloud/start.sh`          | `start` (every run)   | `mock-backend.sh start`, `sim-remote login`, create-or-reuse the `cloud-agent` simulator, boot it, `reverse start` for 8081 and 3000, write `.cursor/cloud/session.env`. |
 | `.cursor/cloud/get-dev-client.sh` | agent, step 4         | `eas build --profile dev-sim --json` (waits), download and extract into `build/`; `--reuse-latest` takes the newest finished build instead.                   |
 | `.cursor/cloud/record.sh`         | agent, steps 2, 8, 10 | `start <name>` / `stop`: `sim-remote simctl io <UDID> recordVideo` in the background, SIGINT to stop, waits for the download of `media/<name>.mp4`.           |
 | `.cursor/cloud/pr-body.md`        | agent, step 12        | PR description template; thumbnails in a table, videos attached with `gh --attach`.                                                                            |
@@ -155,7 +156,7 @@ eas whoami                                # authenticated via EXPO_TOKEN
 curl -s http://localhost:3000/xrpc/_health   # {} from the mock PDS
 grep EXPO_PUBLIC_BLUESKY_PROXY_DID .env   # equals MOCK_APPVIEW_DID
 sim-remote list-machines                  # one machine marked with *
-sim-remote simctl list devices booted     # the simulator from start.sh
+sim-remote simctl list devices booted     # the cloud-agent simulator from start.sh
 sim-remote reverse status                 # SIM_UDID with 8081 and 3000
 curl -s http://localhost:8081/status      # packager-status:running
 ```
@@ -312,8 +313,8 @@ That releases the runner and drops both tunnels; the VM itself is discarded afte
 
 ```
 You are working in a Cursor Cloud VM on <owner>/<repo>, branch <base>. There is no simulator on this
-machine. Argent Cloud provides one: .cursor/cloud/start.sh already ran `sim-remote login`, booted a
-simulator (UDID in .cursor/cloud/session.env) and opened `sim-remote reverse start <UDID> 8081` and
+machine. Argent Cloud provides one: .cursor/cloud/start.sh already ran `sim-remote login`, created or reused a
+simulator named cloud-agent (UDID in .cursor/cloud/session.env), booted it and opened `sim-remote reverse start <UDID> 8081` and
 `... 3000`, so the simulator reaches Metro (terminal "metro", port 8081) and the local mock Bluesky
 network (PDS on port 3000) at its own localhost. The mock network is seeded with alice.test, bob.test
 and carla.test (password hunter2, a public test fixture); nothing you do there is visible outside the VM.
@@ -356,6 +357,7 @@ Follow docs/cloud-agent-plan.md section 3 in order. Rules:
 | argent not enabled in the MCP dropdown at cursor.com/agents (the repo's `.cursor/mcp.json` is ignored by cloud agents, confirmed), or the MCP process runs under a different user/HOME than `start.sh`. | No argent tools, or `list-devices` empty | Section 1.8; start a new agent after enabling; step 1 compares `list-devices` with `sim-remote list-machines` from the terminal. |
 | Fleet fully leased; `login` waits for a free runner.                                                    | Run stalls at start                           | `start.sh` waits 300 s; report if it still fails.                                                                             |
 | Session expires or the sim-remote daemon dies mid-run; tunnels die with it.                             | argent tools, Metro and PDS connections stop  | Re-run `start.sh`; `list-machines` + `attach` if the lease survived.                                                          |
+| The runner's Xcode has no `iPhone 17 Pro` device type or no available iOS runtime.                     | `start.sh` fails at create                    | Falls back to the newest iPhone Pro type automatically; the runtime is whatever is newest. If both are missing the runner is misconfigured; report it. |
 | `recordVideo` stop/download semantics over sim-remote (SIGINT, `--force`).                              | No video files                                | Step 2 smoke test; `record.sh` polls for the download and prints the duration.                                                |
 | argent `paste` on ios-remote may lack a transport.                                                      | URL or handle typed with autocorrect errors   | Fall back to `keyboard`, verify with `describe`, retry with backspaces.                                                       |
 | Dev client built with `EXPO_PUBLIC_ENV=production` enforces update code signing.                        | Launcher error instead of the app             | `dev-sim` sets `EXPO_PUBLIC_ENV=development`.                                                                                 |
@@ -380,6 +382,6 @@ Follow docs/cloud-agent-plan.md section 3 in order. Rules:
 | argent tool-server  | VM (auto-spawned by the MCP server)               | local                                                   | sees the runner's simulators as `ios-remote` after `start.sh`         |
 | EAS artifact        | `build/Debug-iphonesimulator/Bluesky.app` on VM   | `reinstall-app --appPath` / `sim-remote simctl install` | uploaded to the runner automatically                                  |
 | Recordings          | `media/*.mp4`, `media/*-720p.mp4` on the VM       | `.cursor/cloud/record.sh start\|stop`, then ffmpeg      | attached to the PR with `gh --attach`; never committed                |
-| Simulator           | Argent Cloud runner                               | `$SIM_UDID` from `.cursor/cloud/session.env`            | booted in `start.sh`                                                  |
+| Simulator           | Argent Cloud runner                               | `$SIM_UDID` from `.cursor/cloud/session.env`            | named `cloud-agent`; created on first use, booted in `start.sh`       |
 
 Sources: the sim-remote user guide, argent tool-server strings (`ios-remote` platform, `sim-remote` dependency, "remote simulators are unsupported" for recording), Cursor cloud agent docs (https://cursor.com/docs/cloud-agent, https://cursor.com/docs/cloud-agent/setup, https://cursor.com/docs/cloud-agent/builds, https://cursor.com/docs/cloud-agent/security-network), the GitHub changelog on media attachments in the CLI (https://github.blog/changelog/2026-09-01-github-cli-media-in-issues-pull-requests-and-comments/), and this repo's `docs/build.md`, `docs/testing.md`, `dev-env/`, `eas.json`, `app.config.js`, `__e2e__/flows/login.yml`.
