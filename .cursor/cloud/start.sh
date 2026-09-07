@@ -6,15 +6,19 @@
 # Starts before the Metro terminal.
 #
 # What it does
-#   1. Start and seed the mock Bluesky network
-#   2. Lease an Argent Cloud runner
-#   3. Create and boot a fresh cloud-agent-* simulator
-#   4. Tunnel Metro (8081) and mock PDS (3000) into that simulator
-#   5. Write .cursor/cloud/session.env for the agent
+#   1. Install CURSOR-CLOUD.md as an always-on Cursor rule (gitignored)
+#   2. Start and seed the mock Bluesky network
+#   3. Lease an Argent Cloud runner
+#   4. Create and boot a fresh cloud-agent-* simulator
+#   5. Tunnel Metro (8081) and mock PDS (3000) into that simulator
+#   6. Write .cursor/cloud/session.env for the agent
 #
 # Required secrets
 #   SIM_ROUTER_USERNAME
 #   SIM_ROUTER_API_KEY
+#
+# Argent MCP for cloud agents: register `argent mcp` as a stdio server in the
+# Cursor dashboard; cloud agents ignore the repo's .cursor/mcp.json.
 #
 # Optional env
 #   SIM_DEVICE_TYPE   Device type to create (default iPhone 17 Pro)
@@ -25,6 +29,10 @@ cd "$(git rev-parse --show-toplevel)"
 
 # Cursor prepends its own Node 22 on PATH. Prefer the image Node 24.
 export PATH="/usr/bin:$PATH"
+
+# CURSOR-CLOUD.md becomes an always-on Cursor rule.
+mkdir -p .cursor/rules
+{ printf -- '---\nalwaysApply: true\n---\n\n'; cat .cursor/cloud/CURSOR-CLOUD.md; } > .cursor/rules/cloud-session.mdc
 
 : "${SIM_ROUTER_USERNAME:?SIM_ROUTER_USERNAME is missing}"
 : "${SIM_ROUTER_API_KEY:?SIM_ROUTER_API_KEY is missing}"
