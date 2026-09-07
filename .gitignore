@@ -141,10 +141,13 @@ docs/superpowers/
 # pnpm
 .pnpm-store/
 
-# Cursor cloud-agent workflow (docs/cloud-agent-plan.md): generated at run time
+# Cursor Cloud agent workflow (.cursor/cloud/): generated at run time
 .cursor/cloud/session.env
 .cursor/cloud/mock.env
 .cursor/cloud/*.log
+# generated in the Cursor Cloud VM by .cursor/cloud/start.sh
+.cursor/rules/cloud-session.mdc
+/pr-body.md
 /media/
 .argent/recordings/
 .argent/secrets.env
