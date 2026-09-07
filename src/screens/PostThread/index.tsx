@@ -482,6 +482,9 @@ export function PostThread({uri}: {uri: string}) {
                 onPostSuccess={optimisticOnPostReply}
                 postSource={anchorPostSource}
               />
+              {showEmptyReplies && (
+                <ThreadEmptyReplies height={emptyRepliesHeight} />
+              )}
             </View>
           )
         } else {
@@ -559,6 +562,8 @@ export function PostThread({uri}: {uri: string}) {
       onReplyToAnchor,
       gtMobile,
       anchorPostSource,
+      showEmptyReplies,
+      emptyRepliesHeight,
     ],
   )
 
@@ -617,29 +622,34 @@ export function PostThread({uri}: {uri: string}) {
             maintainVisibleContentPosition={{minIndexForVisible: 0}}
             desktopFixedHeight
             sideBorders={false}
+            extraData={showEmptyReplies}
             ListFooterComponent={
-              showEmptyReplies ? (
-                <ThreadEmptyReplies height={emptyRepliesHeight} />
-              ) : (
-                <ListFooter
-                  /*
-                   * On native, if `deferParents` is true, we need some extra buffer to
-                   * account for the `on*ReachedThreshold` values.
-                   *
-                   * Otherwise, and on web, this value needs to be the height of
-                   * the viewport _minus_ a sensible min-post height e.g. 200, so
-                   * that there's enough scroll remaining to get the anchor post
-                   * back to the top of the screen when handling scroll.
-                   */
-                  height={platform({
-                    web: defaultListFooterHeight,
-                    default: deferParents
-                      ? windowHeight * 2
-                      : defaultListFooterHeight,
-                  })}
-                  style={isTombstoneView ? {borderTopWidth: 0} : undefined}
-                />
-              )
+              <ListFooter
+                /*
+                 * On native, if `deferParents` is true, we need some extra buffer to
+                 * account for the `on*ReachedThreshold` values.
+                 *
+                 * Otherwise, and on web, this value needs to be the height of
+                 * the viewport _minus_ a sensible min-post height e.g. 200, so
+                 * that there's enough scroll remaining to get the anchor post
+                 * back to the top of the screen when handling scroll.
+                 */
+                height={
+                  showEmptyReplies
+                    ? 80
+                    : platform({
+                        web: defaultListFooterHeight,
+                        default: deferParents
+                          ? windowHeight * 2
+                          : defaultListFooterHeight,
+                      })
+                }
+                style={
+                  showEmptyReplies || isTombstoneView
+                    ? {borderTopWidth: 0}
+                    : undefined
+                }
+              />
             }
             initialNumToRender={initialNumToRender}
             /**
