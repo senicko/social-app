@@ -38,6 +38,7 @@ import {
   ThreadItemAnchorSkeleton,
 } from '#/screens/PostThread/components/ThreadItemAnchor'
 import {ThreadItemAnchorNoUnauthenticated} from '#/screens/PostThread/components/ThreadItemAnchorNoUnauthenticated'
+import {ThreadItemEmptyReplies} from '#/screens/PostThread/components/ThreadItemEmptyReplies'
 import {
   ThreadItemPost,
   ThreadItemPostSkeleton,
@@ -428,6 +429,41 @@ export function PostThread({uri}: {uri: string}) {
     )
   }, [deferredSlices])
 
+  /*
+   * True when the loaded thread has no replies beneath the anchor. Ignore the
+   * composer, skeletons, and parents so we don't flash this while loading.
+   */
+  const hasNoReplies = useMemo(() => {
+    if (thread.state.isPlaceholderData || thread.state.error) {
+      return false
+    }
+    if (isTombstoneView) {
+      return false
+    }
+    return !thread.data.items.some(item => {
+      if (item.type === 'showOtherReplies' || item.type === 'readMore') {
+        return true
+      }
+      if (
+        (item.type === 'threadPost' ||
+          item.type === 'threadPostNoUnauthenticated' ||
+          item.type === 'threadPostNotFound' ||
+          item.type === 'threadPostBlocked') &&
+        item.depth > 0
+      ) {
+        return true
+      }
+      return false
+    })
+  }, [
+    isTombstoneView,
+    thread.data.items,
+    thread.state.error,
+    thread.state.isPlaceholderData,
+  ])
+
+  const showEmptyReplies = hasNoReplies && !deferParents
+
   const renderItem = useCallback(
     ({item, index}: {item: ThreadItem; index: number}) => {
       if (item.type === 'threadPost') {
@@ -551,6 +587,20 @@ export function PostThread({uri}: {uri: string}) {
   )
 
   const defaultListFooterHeight = hasParents ? windowHeight - 200 : undefined
+  /*
+   * Fill the leftover viewport under the post so the butterfly sits in the
+   * middle of the white area (header + typical post + compose + tab bar).
+   */
+  const emptyRepliesFooterHeight = Math.max(280, windowHeight - 420)
+  const listFooterHeight = platform({
+    web: showEmptyReplies ? emptyRepliesFooterHeight : defaultListFooterHeight,
+    default: deferParents
+      ? windowHeight * 2
+      : showEmptyReplies
+        ? emptyRepliesFooterHeight
+        : defaultListFooterHeight,
+  })
+  const emptyRepliesBottomInset = !gtMobile && canReply && hasSession ? 80 : 0
 
   return (
     <PostThreadContextProvider context={thread.context}>
@@ -606,24 +656,26 @@ export function PostThread({uri}: {uri: string}) {
             desktopFixedHeight
             sideBorders={false}
             ListFooterComponent={
-              <ListFooter
-                /*
-                 * On native, if `deferParents` is true, we need some extra buffer to
-                 * account for the `on*ReachedThreshold` values.
-                 *
-                 * Otherwise, and on web, this value needs to be the height of
-                 * the viewport _minus_ a sensible min-post height e.g. 200, so
-                 * that there's enough scroll remaining to get the anchor post
-                 * back to the top of the screen when handling scroll.
-                 */
-                height={platform({
-                  web: defaultListFooterHeight,
-                  default: deferParents
-                    ? windowHeight * 2
-                    : defaultListFooterHeight,
-                })}
-                style={isTombstoneView ? {borderTopWidth: 0} : undefined}
-              />
+              showEmptyReplies ? (
+                <ThreadItemEmptyReplies
+                  height={emptyRepliesFooterHeight}
+                  reservedBottom={emptyRepliesBottomInset}
+                />
+              ) : (
+                <ListFooter
+                  /*
+                   * On native, if `deferParents` is true, we need some extra buffer to
+                   * account for the `on*ReachedThreshold` values.
+                   *
+                   * Otherwise, and on web, this value needs to be the height of
+                   * the viewport _minus_ a sensible min-post height e.g. 200, so
+                   * that there's enough scroll remaining to get the anchor post
+                   * back to the top of the screen when handling scroll.
+                   */
+                  height={listFooterHeight}
+                  style={isTombstoneView ? {borderTopWidth: 0} : undefined}
+                />
+              )
             }
             initialNumToRender={initialNumToRender}
             /**
