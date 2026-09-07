@@ -2,7 +2,7 @@
   "build": {
     "dockerfile": "Dockerfile"
   },
-  "install": "pnpm install --frozen-lockfile && pnpm --dir dev-env install --frozen-lockfile",
+  "install": "pnpm install --frozen-lockfile && pnpm --dir dev-env install --frozen-lockfile && bash .cursor/cloud/build-argent.sh",
   "start": "bash .cursor/cloud/start.sh",
   "terminals": [
     {

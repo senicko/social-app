@@ -1,6 +1,6 @@
 # Cursor Cloud specific instructions
 
-Cursor Cloud run. `.cursor/cloud/start.sh` started the mock Bluesky network, leased an Argent Cloud runner, booted a fresh iOS simulator (argent platform `ios-remote`), tunnelled Metro :8081 and the mock PDS :3000 into it, and wrote `.cursor/cloud/session.env`. Do the steps in order. A check that fails twice: stop and report with the log lines.
+Cursor Cloud run. `.cursor/cloud/start.sh` started the mock Bluesky network, leased an Argent Cloud runner, picked a simulator already booted on it (argent platform `ios-remote`), tunnelled Metro :8081 and the mock PDS :3000 into it, and wrote `.cursor/cloud/session.env`. Do the steps in order. A check that fails twice: stop and report with the log lines.
 
 ## Rules
 
@@ -22,6 +22,7 @@ Cursor Cloud run. `.cursor/cloud/start.sh` started the mock Bluesky network, lea
    ```bash
    source .cursor/cloud/session.env   # SIM_UDID SIM_NAME MOCK_PDS_URL MOCK_APPVIEW_DID MOCK_USER
    node -v && gh auth status && eas whoami
+   cat .cursor/cloud/argent-build.log        # which argent commit build-argent.sh installed; main reports the last release's version
    curl -s http://localhost:3000/xrpc/_health   # {}
    curl -s http://localhost:8081/status         # packager-status:running
    grep -c 'reloads are disabled' .cursor/cloud/metro.log   # 0
@@ -38,11 +39,7 @@ Cursor Cloud run. `.cursor/cloud/start.sh` started the mock Bluesky network, lea
 9. Change under `src/`. Verify with `describe`. Then `pnpm typecheck:ios && pnpm lint && node_modules/.bin/prettier --check <files>`.
 10. After: the same flow between `bash .cursor/cloud/record.sh start after` and `stop`. If the flow changes data, reseed and restart Metro before it.
 11. PR: `cp .cursor/cloud/pr-body.md pr-body.md`, fill it in (keep the two `<video src>` tags as they are), `git add src/ && git commit`, then `bash .cursor/cloud/pr.sh create "<title>" pr-body.md`.
-12. Cleanup, always, also on failure. Report the PR URL and the EAS build id.
-    ```bash
-    source .cursor/cloud/session.env
-    sim-remote simctl shutdown "$SIM_UDID" && sim-remote simctl delete "$SIM_UDID" && sim-remote logout
-    ```
+12. Cleanup, always, also on failure: `sim-remote logout`. It releases the runner and clears the session, simulator state included. Report the PR URL and the EAS build id.
 
 ## Failures seen before
 

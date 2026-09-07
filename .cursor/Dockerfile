@@ -5,7 +5,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 # tmux is required for Cursor cloud terminals.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-        ca-certificates curl git jq sudo tmux ffmpeg \
+        ca-certificates curl file git jq sudo tmux ffmpeg \
         postgresql postgresql-client redis-server \
  && rm -rf /var/lib/apt/lists/*
 
@@ -14,12 +14,6 @@ RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
  && rm -rf /var/lib/apt/lists/* \
  && npm install -g --no-audit --no-fund pnpm@11.21.0 eas-cli@23.2.0 \
  && npm cache clean --force
-
-# Install scripts must run. They fetch the WebTransport native addon used by
-# ios-remote. Without it remote tools fail with Opening handshake failed.
-RUN npm install -g --no-audit --no-fund @swmansion/argent@0.24.0 \
- && test -f "$(npm root -g)/@swmansion/argent/node_modules/@fails-components/webtransport-transport-http3-quiche/build/Release/webtransport.node" \
- && argent --version
 
 RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
       -o /usr/share/keyrings/githubcli-archive-keyring.gpg \

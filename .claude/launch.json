@@ -1,0 +1,38 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "metro",
+      "runtimeExecutable": "/Users/sebastianflajszer/.nvm/versions/node/v24.19.0/bin/node",
+      "runtimeArgs": [
+        "node_modules/expo/bin/cli",
+        "start",
+        "--dev-client"
+      ],
+      "port": 8081
+    },
+    {
+      "name": "metro-clear",
+      "runtimeExecutable": "/Users/sebastianflajszer/.nvm/versions/node/v24.19.0/bin/node",
+      "runtimeArgs": [
+        "node_modules/expo/bin/cli",
+        "start",
+        "--dev-client",
+        "--clear"
+      ],
+      "port": 8081
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "/Users/sebastianflajszer/.nvm/versions/node/v24.19.0/bin/node",
+      "runtimeArgs": [
+        "node_modules/expo/bin/cli",
+        "start",
+        "--web",
+        "--port",
+        "8082"
+      ],
+      "port": 19006
+    }
+  ]
+}
