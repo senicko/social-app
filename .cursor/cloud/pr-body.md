@@ -10,8 +10,8 @@
     <th>After</th>
   </tr>
   <tr>
-    <td><video src="./media/before-720p.mp4" controls width="100%"></video></td>
-    <td><video src="./media/after-720p.mp4" controls width="100%"></video></td>
+    <td><img src="./media/before.png" alt="Before" width="100%"></td>
+    <td><img src="./media/after.png" alt="After" width="100%"></td>
   </tr>
 </table>
 
