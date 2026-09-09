@@ -10,8 +10,8 @@ Cursor Cloud run. `.cursor/cloud/start.sh` started the mock Bluesky network, lea
   ```bash
   PATH=/usr/bin:$PATH EXPO_NO_TELEMETRY=1 node_modules/expo/bin/cli start --dev-client --port 8081 --clear 2>&1 | tee .cursor/cloud/metro.log
   ```
-- On `ios-remote` never call `await-ui-element`, `await-screen-idle`, `paste` (they time out) or `screen-recording-*` (unsupported). Wait with `describe` after `sleep`, at most 8 times. Type with `keyboard` and verify with `describe`; autocorrect turns `localhost` into `local host`, fix with backspaces. `debugger-component-tree` may report the previous screen; trust `describe` for what is on screen.
-- Record only with `record.sh`, clips under 20 s. PR only with `pr.sh`. Never Cursor artifact links in a PR. Never commit `media/`, `pr-body.md`, `.env`, `build/` or generated files under `.cursor/`.
+- On `ios-remote` never call `await-ui-element`, `await-screen-idle` or `paste` (they time out). Wait with `describe` after `sleep`, at most 8 times. Type with `keyboard` and verify with `describe`; autocorrect turns `localhost` into `local host`, fix with backspaces. `debugger-component-tree` may report the previous screen; trust `describe` for what is on screen.
+- Screenshots for the PR only with `screenshot.sh`. PR only with `pr.sh`. Never Cursor artifact links in a PR. Never commit `media/`, `pr-body.md`, `.env`, `build/` or generated files under `.cursor/`.
 - JS/TS changes only (native needs another EAS build). Never run `pnpm intl:*`.
 - Reseed: `bash .cursor/cloud/mock-backend.sh seed`, then restart Metro (the appview DID is inlined into the bundle).
 - Mock network gaps: post search, Explore suggestions and images do not work. Accounts alice.test, bob.test, carla.test, password hunter2.
@@ -29,16 +29,16 @@ Cursor Cloud run. `.cursor/cloud/start.sh` started the mock Bluesky network, lea
    sim-remote reverse status                    # SIM_UDID with 8081 and 3000
    ```
    argent `list-devices` must list `$SIM_UDID` as `ios-remote`. Empty: `sim-remote list-machines`; no machine: `bash .cursor/cloud/start.sh`.
-2. Smoke: argent `screenshot`, then `bash .cursor/cloud/record.sh start smoke && sleep 4 && bash .cursor/cloud/record.sh stop`.
+2. Smoke: argent `screenshot`, then `bash .cursor/cloud/screenshot.sh smoke`.
 3. `git checkout -b agent/<name>`.
 4. App: `bash .cursor/cloud/get-dev-client.sh` (EAS profile `dev-sim`, 15 to 25 min; `--reuse-latest` only if the prompt allows). The last line is the .app path.
 5. Install: argent `reinstall-app` with `udid: $SIM_UDID`, `bundleId: xyz.blueskyweb.app`, `appPath: build/Debug-iphonesimulator/Bluesky.app`. Check: `sim-remote simctl listapps "$SIM_UDID" | grep xyz.blueskyweb.app`.
 6. Open: argent `open-url` `exp+social-app-demo://expo-development-client/?url=http%3A%2F%2Flocalhost%3A8081`. Tap Open, then Continue, then close the dev menu. Wait for `signInButton` (first bundle takes 1 to 3 min). argent `debugger-status` must say `connected`; `metro_not_running` means the Metro terminal died, a launcher connection error means the tunnel is down (`sim-remote reverse status`).
 7. Login, same as `__e2e__/flows/login.yml`: `signInButton`, `selectServiceButton`, `manualSelectBtn`, type `http://localhost:3000` into `customServerTextInput`, `doneBtn`, `alice.test` into `loginUsernameInput`, `hunter2` into `loginPasswordInput`, enter. Dismiss notifications (Don't Allow), Save Password (Not Now), Age Assurance (Save), verify email (Maybe later). Check: `bottomBarHomeBtn` and Bob's "Thread root" in the feed. Network error: `curl -s http://localhost:3000/xrpc/_health`, `sim-remote reverse status`, `.cursor/cloud/mock-server.log`. Every request failing after login: reseed.
-8. Before: write the flow as a list of argent calls or record an argent flow, keep it under 20 s. `bash .cursor/cloud/record.sh start before`, run it, `bash .cursor/cloud/record.sh stop`.
+8. Before: navigate to the screen the change affects, then `bash .cursor/cloud/screenshot.sh before`.
 9. Change under `src/`. Verify with `describe`. Then `pnpm typecheck:ios && pnpm lint && node_modules/.bin/prettier --check <files>`.
-10. After: the same flow between `bash .cursor/cloud/record.sh start after` and `stop`. If the flow changes data, reseed and restart Metro before it.
-11. PR: `cp .cursor/cloud/pr-body.md pr-body.md`, fill it in (keep the two `<video src>` tags as they are), `git add src/ && git commit`, then `bash .cursor/cloud/pr.sh create "<title>" pr-body.md`.
+10. After: the same screen in the same state, then `bash .cursor/cloud/screenshot.sh after`. If getting there changed data, reseed and restart Metro first.
+11. PR: `cp .cursor/cloud/pr-body.md pr-body.md`, fill it in (keep the two `<img src>` tags as they are), `git add src/ && git commit`, then `bash .cursor/cloud/pr.sh create "<title>" pr-body.md`.
 12. Cleanup, always, also on failure: `sim-remote logout`. It releases the runner and clears the session, simulator state included. Report the PR URL and the EAS build id.
 
 ## Failures seen before

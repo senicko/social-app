@@ -5,7 +5,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 # tmux is required for Cursor cloud terminals.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-        ca-certificates curl file git jq sudo tmux ffmpeg \
+        ca-certificates curl file git jq sudo tmux \
         postgresql postgresql-client redis-server \
  && rm -rf /var/lib/apt/lists/*
 

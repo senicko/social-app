@@ -2,21 +2,21 @@
 
 # pr.sh
 #
-# Open or update the before/after PR with both videos playing in the body's
-# HTML table. Videos go up with gh --attach (GitHub plays only its own asset
-# URLs). gh rewrites markdown references but not HTML, and a markdown video in
-# a table degrades to a link, so: upload with a helper markdown link per video,
-# read the rewritten URLs back, re-send the body with them in the <video src>.
+# Open or update the before/after PR with both screenshots in the body's HTML
+# table. Screenshots go up with gh --attach, which hosts them as GitHub assets.
+# gh rewrites markdown references but not HTML, and markdown inside an HTML
+# table is not rendered, so: upload with a helper markdown link per screenshot,
+# read the rewritten URLs back, re-send the body with them in the <img src>.
 #
 # Commands
 #   create <title> [body-file]    Push the branch if it has no upstream, create the
-#                                 PR with both videos, fill the table, check
-#   update [number] [body-file]   Upload both videos again and rewrite the body
-#                                 of an existing PR the same way, then check
+#                                 PR with both screenshots, fill the table, check
+#   update [number] [body-file]   Upload both screenshots again and rewrite the
+#                                 body of an existing PR the same way, then check
 #   check [number]                Verify the body: two asset URLs, no ./media left
 #
-# Files, from record.sh stop
-#   media/before-720p.mp4  media/after-720p.mp4
+# Files, from screenshot.sh
+#   media/before.png  media/after.png
 #
 # Env
 #   PR_BASE     Base branch for create (default main)
@@ -29,15 +29,10 @@ cd "$(git rev-parse --show-toplevel)"
 BASE="${PR_BASE:-main}"
 MAX_MB="${PR_MAX_MB:-10}"
 BODY_DEFAULT="pr-body.md"
-NAMES=(before-720p.mp4 after-720p.mp4)
+NAMES=(before.png after.png)
 ASSET_RE='https://github\.com/user-attachments/assets/[A-Za-z0-9_./-]*'
 
 dry() { [ "${DRY_RUN:-}" = 1 ]; }
-
-attach_args() {
-  local n
-  for n in "${NAMES[@]}"; do printf -- '--attach\n./media/%s\n' "$n"; done
-}
 
 check_media() {
   local n f bytes limit=$((MAX_MB * 1000 * 1000)) ok=1
@@ -46,13 +41,13 @@ check_media() {
     f="media/$n"
 
     if [ ! -s "$f" ]; then
-      echo "missing: $f (record.sh stop writes it)" >&2; ok=0; continue
+      echo "missing: $f (bash .cursor/cloud/screenshot.sh ${n%.png} writes it)" >&2; ok=0; continue
     fi
 
     bytes="$(wc -c < "$f" | tr -d ' ')"
 
     if [ "$bytes" -gt "$limit" ]; then
-      echo "$f is $((bytes / 1000)) kB, over the $MAX_MB MB limit. Shorten the flow, or: bash .cursor/cloud/record.sh encode ${n%-720p.mp4}" >&2; ok=0
+      echo "$f is $((bytes / 1000)) kB, over the $MAX_MB MB limit" >&2; ok=0
     fi
   done
 
@@ -75,13 +70,13 @@ check_body() {
   fi
 
   for n in "${NAMES[@]}"; do
-    grep -q "src=\"./media/$n\"" "$body" || { echo "$body has no <video src=\"./media/$n\"> tag. Start from .cursor/cloud/pr-body.md." >&2; exit 1; }
+    grep -q "src=\"./media/$n\"" "$body" || { echo "$body has no <img src=\"./media/$n\"> tag. Start from .cursor/cloud/pr-body.md." >&2; exit 1; }
   done
 }
 
 # The body as sent on upload: the author's file plus one helper link per
-# video. gh rewrites each link to the asset URL, which is how finalize learns
-# them. finalize removes the links again.
+# screenshot. gh rewrites each link to the asset URL, which is how finalize
+# learns them. finalize removes the links again.
 stage_body() {
   local body="$1" out="$2" n
   {
@@ -132,7 +127,7 @@ check() {
   local num="${1:-}" current urls n
 
   current="$(pr_body "$num")"
-  urls="$(printf '%s' "$current" | grep -o "<video src=\"$ASSET_RE\"" | grep -o "$ASSET_RE" || true)"
+  urls="$(printf '%s' "$current" | grep -o "<img src=\"$ASSET_RE\"" | grep -o "$ASSET_RE" || true)"
   n="$(printf '%s' "$urls" | grep -c . || true)"
   gh pr view ${num:+"$num"} --json url --jq .url
   [ -z "$urls" ] || echo "$urls"
@@ -143,11 +138,11 @@ check() {
   fi
 
   if [ "$n" -lt 2 ]; then
-    echo "expected 2 <video> tags with asset URLs, found $n. Run: bash .cursor/cloud/pr.sh update ${num:-<number>} pr-body.md" >&2
+    echo "expected 2 <img> tags with asset URLs, found $n. Run: bash .cursor/cloud/pr.sh update ${num:-<number>} pr-body.md" >&2
     exit 1
   fi
 
-  echo "ok: $n videos in the Before / After table"
+  echo "ok: $n screenshots in the Before / After table"
 }
 
 case "${1:-}" in
@@ -169,7 +164,8 @@ case "${1:-}" in
 
     staged="$(mktemp)"
     stage_body "$body" "$staged"
-    mapfile -t attach < <(attach_args)
+    attach=()
+    for n in "${NAMES[@]}"; do attach+=(--attach "./media/$n"); done
     gh_run pr create --base "$BASE" --head "$branch" --title "$title" --body-file "$staged" "${attach[@]}"
 
     if dry; then
@@ -187,7 +183,8 @@ case "${1:-}" in
     check_media
     staged="$(mktemp)"
     stage_body "$body" "$staged"
-    mapfile -t attach < <(attach_args)
+    attach=()
+    for n in "${NAMES[@]}"; do attach+=(--attach "./media/$n"); done
     args=(pr edit)
 
     if [ -n "$num" ]; then args+=("$num"); fi
